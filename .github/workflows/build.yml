@@ -73,7 +73,11 @@ jobs:
       - name: Verify build output
         run: |
           if (-not (Test-Path "dist/app.dist/$env:APP_EXE")) { throw "Built EXE not found" }
-          $leaks = Get-ChildItem dist/app.dist -Recurse -File | Where-Object { $_.Name -match '\.pem$|\.pfx$|\.lic$|\.env$|firebase_admin|_build_secrets\.py$|activation_data' }
+          # Public CA bundles (certifi/cacert.pem, grpc roots.pem) are required for HTTPS and are allowed.
+          $leaks = Get-ChildItem dist/app.dist -Recurse -File | Where-Object {
+            ($_.Name -match '\.pfx$|\.p12$|\.lic$|\.env$|firebase_admin|_build_secrets\.py$|activation_data|private_key') -or
+            ($_.Extension -in '.pem', '.key' -and (Select-String -LiteralPath $_.FullName -Pattern 'PRIVATE KEY' -Quiet))
+          }
           if ($leaks) { $leaks.FullName; throw "Sensitive files found in build output" }
 
       # ---------- Sign the application EXE (only when SignPath is configured) ----------
