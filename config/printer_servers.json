@@ -1,0 +1,44 @@
+{
+  "a1528425-798d-4c77-aa9e-e9aae8cae0ce": {
+    "id": "a1528425-798d-4c77-aa9e-e9aae8cae0ce",
+    "name": "Server A",
+    "ip": "localhost",
+    "port": 2100,
+    "enabled": true,
+    "rip_folder": "",
+    "num_copies": 1,
+    "pattern": "*.bmp",
+    "recursive": false,
+    "continuous_mode": false,
+    "max_wait_time": 300,
+    "page_filter": {
+      "mode": "all",
+      "from": 1,
+      "to": 1000000,
+      "reverse": false,
+      "odd": false,
+      "even": false
+    }
+  },
+  "9935fb27-2277-4c60-9ada-73730c5eb79c": {
+    "id": "9935fb27-2277-4c60-9ada-73730c5eb79c",
+    "name": "Server B",
+    "ip": "localhost",
+    "port": 3100,
+    "enabled": true,
+    "rip_folder": "",
+    "num_copies": 1,
+    "pattern": "*.bmp",
+    "recursive": false,
+    "continuous_mode": false,
+    "max_wait_time": 300,
+    "page_filter": {
+      "mode": "all",
+      "from": 1,
+      "to": 1000000,
+      "reverse": false,
+      "odd": false,
+      "even": false
+    }
+  }
+}

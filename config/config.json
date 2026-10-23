@@ -1,0 +1,41 @@
+{
+  "settings": {
+    "input_path": "",
+    "x_dpi": 360,
+    "y_dpi": 300
+  },
+  "regions": [
+    {
+      "name": "Region_1",
+      "coordinates": [
+        0.047,
+        0.265,
+        0.95,
+        0.668
+      ],
+      "cmyk": [
+        100,
+        0,
+        0,
+        0
+      ],
+      "priority": 1
+    },
+    {
+      "name": "Region_2",
+      "coordinates": [
+        0.047,
+        0.704,
+        0.941,
+        0.984
+      ],
+      "cmyk": [
+        92,
+        0,
+        91,
+        4
+      ],
+      "priority": 2
+    }
+  ]
+}

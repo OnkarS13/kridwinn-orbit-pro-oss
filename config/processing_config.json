@@ -1,0 +1,55 @@
+{
+  "processing_sequence": {
+    "stage_1": {
+      "name": "Page Processing (DPI \u2192 Scaling \u2192 Margins)",
+      "processing_type": "batch_threading",
+      "operations": {
+        "dpi_adjustment": {
+          "enabled": false,
+          "x_dpi": 300,
+          "y_dpi": 300
+        },
+        "page_scaling": {
+          "enabled": true,
+          "target_width_mm": 100,
+          "target_height_mm": 350
+        },
+        "pdf_margin_adjustment": {
+          "enabled": false,
+          "top_margin": 0,
+          "bottom_margin": 0,
+          "left_margin": 0,
+          "right_margin": 0
+        }
+      },
+      "output_folder": "TEMP_FOLDER_1"
+    },
+    "stage_2": {
+      "name": "Document Structure (Full PDF operations)",
+      "processing_type": "sequential_full_pdf",
+      "operations": {
+        "rotation": {
+          "enabled": true,
+          "angle": 180
+        },
+        "reverse_ordering": {
+          "enabled": false
+        },
+        "add_blank_pages": {
+          "enabled": false,
+          "pages_to_append": 1,
+          "mode": 0,
+          "after_page": -1
+        }
+      },
+      "output_folder": "FINAL_OUTPUT_FOLDER"
+    }
+  },
+  "execution_order": [
+    "stage_1",
+    "stage_2"
+  ],
+  "flow_description": "Input \u2192 Stage 1 (DPI \u2192 Scaling \u2192 Margins) \u2192 TEMP_1 \u2192 Stage 2 (Structure) \u2192 Final Output",
+  "generated_at": "",
+  "config_version": "1.0"
+}

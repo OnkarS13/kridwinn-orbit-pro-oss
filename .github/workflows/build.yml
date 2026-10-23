@@ -1,0 +1,166 @@
+name: Build (and sign) Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # create GitHub Releases for tags
+  actions: read     # required by SignPath to read job details / artifacts
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 180
+
+    env:
+      APP_EXE: Kridwinn Orbit Pro.exe
+      SIGNING_ENABLED: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Write build-time secrets
+        env:
+          KRIDWINN_CONFIG_KEY: ${{ secrets.KRIDWINN_CONFIG_KEY }}
+          KRIDWINN_ACTIVATION_SALT: ${{ secrets.KRIDWINN_ACTIVATION_SALT }}
+          KRIDWINN_ADMIN_SALT: ${{ secrets.KRIDWINN_ADMIN_SALT }}
+          FIREBASE_CREDS_ENC_B64: ${{ secrets.FIREBASE_CREDS_ENC_B64 }}
+          LICENSING_CONFIG_ENC_B64: ${{ secrets.LICENSING_CONFIG_ENC_B64 }}
+        run: |
+          python tools/write_build_secrets.py
+          if (-not (Test-Path secure_config/firebase_creds.enc)) { throw "FIREBASE_CREDS_ENC_B64 secret is missing" }
+          if (-not (Test-Path secure_config/licensing_config.enc)) { throw "LICENSING_CONFIG_ENC_B64 secret is missing" }
+
+      - name: Build app (Nuitka standalone)
+        run: >
+          python -m nuitka --standalone app.py
+          --enable-plugin=pyside6
+          --include-data-files=secure_config/licensing_config.enc=secure_config/licensing_config.enc
+          --include-data-files=secure_config/firebase_creds.enc=secure_config/firebase_creds.enc
+          --include-data-dir=config=config
+          --include-data-dir=pages=pages
+          --include-data-dir=assets=assets
+          --include-data-files=icon.ico=icon.ico
+          --windows-icon-from-ico=icon.ico
+          --windows-console-mode=disable
+          --output-dir=dist
+          "--output-filename=${{ env.APP_EXE }}"
+          --remove-output --lto=yes --assume-yes-for-downloads --prefer-source-code
+
+      - name: Remove generated secrets from workspace
+        if: always()
+        run: Remove-Item -Force -ErrorAction SilentlyContinue pages/licensing/_build_secrets.py
+
+      - name: Verify build output
+        run: |
+          if (-not (Test-Path "dist/app.dist/$env:APP_EXE")) { throw "Built EXE not found" }
+          $leaks = Get-ChildItem dist/app.dist -Recurse -File | Where-Object { $_.Name -match '\.pem$|\.pfx$|\.lic$|\.env$|firebase_admin|_build_secrets\.py$|activation_data' }
+          if ($leaks) { $leaks.FullName; throw "Sensitive files found in build output" }
+
+      # ---------- Sign the application EXE (only when SignPath is configured) ----------
+      - name: Stage EXE for signing
+        if: env.SIGNING_ENABLED == 'true'
+        run: |
+          New-Item -ItemType Directory -Force to-sign/app | Out-Null
+          Copy-Item "dist/app.dist/$env:APP_EXE" to-sign/app/
+
+      - name: Upload unsigned EXE
+        if: env.SIGNING_ENABLED == 'true'
+        id: upload-unsigned-exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-app-exe
+          path: to-sign/app/
+          if-no-files-found: error
+
+      - name: Sign EXE with SignPath
+        if: env.SIGNING_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned-exe.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed/app
+
+      - name: Replace EXE with signed EXE
+        if: env.SIGNING_ENABLED == 'true'
+        run: Copy-Item -Force "signed/app/$env:APP_EXE" "dist/app.dist/$env:APP_EXE"
+
+      # ---------- Build the installer ----------
+      - name: Install Inno Setup (if needed)
+        run: |
+          $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { choco install innosetup -y --no-progress }
+
+      - name: Build installer (Inno Setup)
+        run: |
+          $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw "ISCC.exe not found" }
+          & $iscc installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+
+      # ---------- Sign the installer (only when SignPath is configured) ----------
+      - name: Upload unsigned installer
+        if: env.SIGNING_ENABLED == 'true'
+        id: upload-unsigned-installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-installer
+          path: dist/installer/KridwinnOrbitPro-Setup.exe
+          if-no-files-found: error
+
+      - name: Sign installer with SignPath
+        if: env.SIGNING_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed/installer
+
+      - name: Use signed installer
+        if: env.SIGNING_ENABLED == 'true'
+        run: Copy-Item -Force signed/installer/KridwinnOrbitPro-Setup.exe dist/installer/KridwinnOrbitPro-Setup.exe
+
+      # ---------- Publish ----------
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KridwinnOrbitPro-Setup
+          path: dist/installer/KridwinnOrbitPro-Setup.exe
+          if-no-files-found: error
+
+      - name: Create GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/installer/KridwinnOrbitPro-Setup.exe --title "${{ github.ref_name }}" --generate-notes

@@ -1,0 +1,22 @@
+{
+  "fix_browse_folder": false,
+  "fixed_folder_path": "",
+  "fixed_folder_path_2": "",
+  "auto_refresh_enabled": false,
+  "auto_refresh_interval": 5,
+  "enable_copies_collate": true,
+  "enable_specify_range": true,
+  "enable_reverse_order": true,
+  "enable_continuous_mode": true,
+  "post_print_action": "no_action",
+  "move_destination": "",
+  "move_destination_2": "",
+  "logging_enabled": true,
+  "logging_mode": "daily",
+  "enable_reprint_detection": true,
+  "reprint_mode": "allowed",
+  "history_retention_days": 30,
+  "enable_file_grouping": true,
+  "batch_size": 24,
+  "resume_repeat_pages": 1
+}

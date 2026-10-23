@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration (copy this into your SignPath project).
+  Used for both signing requests in .github/workflows/build.yml:
+    1. the application EXE ("Kridwinn Orbit Pro.exe")
+    2. the installer ("KridwinnOrbitPro-Setup.exe")
+  GitHub artifacts are delivered to SignPath as a ZIP, so the root element is <zip-file>.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file-set>
+      <include path="*.exe" max-matches="unbounded" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>
