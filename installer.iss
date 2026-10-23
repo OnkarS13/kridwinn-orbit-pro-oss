@@ -34,7 +34,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ; Standalone build - copy entire app.dist folder
-Source: "dist\app.dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\app.dist\*"; DestDir: "{app}"; Excludes: "config\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Keep the client's existing settings (server IPs, admin settings) when updating over an old install
+Source: "dist\app.dist\config\*"; DestDir: "{app}\config"; Flags: onlyifdoesntexist recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\Kridwinn Orbit Pro"; Filename: "{app}\Kridwinn Orbit Pro.exe"; WorkingDir: "{app}"
