@@ -31,7 +31,7 @@ def get_secret(name: str) -> bytes:
 
     value = getattr(_generated, name, None) if _generated is not None else None
     if not value:
-        value = os.environ.get(name)
+        value = os.environ.get(name, "").strip()
     if not value:
         raise RuntimeError(
             f"Build secret '{name}' is not configured. Run tools/write_build_secrets.py "
